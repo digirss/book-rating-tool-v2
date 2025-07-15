@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 書籍評分查詢工具 V2 - 真實數據版</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📘 AI 書籍評分查詢工具 V2</h1>
+            <p>基於真實豆瓣數據的準確書籍分析</p>
+            <div class="version-badge">
+                <span class="badge">🆕 V2 實驗版</span>
+                <span class="feature">真實數據 • 準確評分</span>
+            </div>
+            <div class="disclaimer">
+                <strong>⚡ V2 特色：</strong>使用 Tavily 搜尋引擎獲取豆瓣真實數據，再由 AI 智能分析整理，大幅提升準確性
+            </div>
+        </header>
+
+        <main>
+            <!-- API 設定區域 -->
+            <section class="settings-section">
+                <div class="settings-toggle">
+                    <button id="settingsToggle" onclick="toggleSettings()">⚙️ API 設定</button>
+                </div>
+                
+                <div class="settings-panel" id="settingsPanel" style="display: none;">
+                    <h3>🔑 API 設定</h3>
+                    
+                    <div class="api-tutorial">
+                        <h4>📝 需要的 API 金鑰：</h4>
+                        <ol>
+                            <li><strong>Tavily API</strong>：用於搜尋豆瓣真實數據</li>
+                            <li><strong>Gemini API</strong>：用於智能分析整理</li>
+                        </ol>
+                        
+                        <h4>🔗 取得方式：</h4>
+                        <ul>
+                            <li><a href="https://app.tavily.com/" target="_blank">Tavily API 申請</a></li>
+                            <li><a href="https://aistudio.google.com/" target="_blank">Gemini API 申請</a></li>
+                        </ul>
+                    </div>
+
+                    <div class="security-notice">
+                        <h4>🔒 安全說明：</h4>
+                        <ul>
+                            <li>✅ 所有 API 金鑰僅存於本機瀏覽器</li>
+                            <li>✅ 不會上傳至任何伺服器</li>
+                            <li>⚠️ 請勿在公用電腦使用</li>
+                        </ul>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="tavilyApiKey">Tavily API 金鑰</label>
+                        <input type="password" id="tavilyApiKey" placeholder="輸入 Tavily API Key">
+                    </div>
+                    
+                    <div class="input-group">
+                        <label for="geminiApiKey">Gemini API 金鑰</label>
+                        <input type="password" id="geminiApiKey" placeholder="輸入 Gemini API Key">
+                    </div>
+                    
+                    <div class="input-group">
+                        <button onclick="saveSettings()">💾 儲存設定</button>
+                        <button onclick="clearSettings()" class="clear-btn">🗑️ 清除設定</button>
+                        <span id="settingsStatus"></span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 搜尋區域 -->
+            <section class="search-section">
+                <div class="input-group">
+                    <label for="bookTitle">書名</label>
+                    <input type="text" id="bookTitle" placeholder="請輸入書名（如：清晰思考）">
+                </div>
+                <div class="input-group">
+                    <label for="bookAuthor">作者（選填）</label>
+                    <input type="text" id="bookAuthor" placeholder="輸入作者名稱可提高搜尋精確度">
+                    <small class="search-tip">
+                        💡 V2 版本會搜尋豆瓣真實資料，建議先嘗試只輸入書名
+                    </small>
+                </div>
+                <div class="input-group">
+                    <button id="searchBtn" onclick="searchBook()">🔍 搜尋真實評分</button>
+                </div>
+            </section>
+
+            <!-- 載入狀態 -->
+            <section class="loading-section" id="loadingSection" style="display: none;">
+                <div class="loading-spinner"></div>
+                <div class="loading-steps">
+                    <p id="loadingStep">正在搜尋豆瓣書籍資料...</p>
+                    <div class="steps-indicator">
+                        <span class="step active">🔍 搜尋中</span>
+                        <span class="step">🤖 AI 分析</span>
+                        <span class="step">📊 整理結果</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 結果區域 -->
+            <section class="results-section" id="resultsSection" style="display: none;">
+                <div class="data-source-badge">
+                    <span class="real-data">✅ 真實豆瓣資料</span>
+                    <span class="ai-analysis">🤖 AI 智能分析</span>
+                </div>
+                
+                <!-- 結果內容將在這裡動態生成 -->
+                <div id="resultsContent"></div>
+            </section>
+
+            <!-- 錯誤區域 -->
+            <section class="error-section" id="errorSection" style="display: none;">
+                <div class="error-content">
+                    <h3>❌ 搜尋遇到問題</h3>
+                    <p id="errorMessage">查詢過程中發生錯誤，請稍後再試。</p>
+                    <div class="error-suggestions">
+                        <h4>💡 建議：</h4>
+                        <ul>
+                            <li>檢查書名拼寫是否正確</li>
+                            <li>嘗試使用更簡潔的書名</li>
+                            <li>檢查 API 設定是否正確</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>🆕 V2 版本 - 基於真實豆瓣數據 | 實驗性功能</p>
+            <p><a href="../book-rating-tool/">返回 V1 版本</a></p>
+        </footer>
+    </div>
+
+    <script src="config.js"></script>
+    <script src="utils/tavily-api.js"></script>
+    <script src="utils/gemini-api.js"></script>
+    <script src="utils/data-parser.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
