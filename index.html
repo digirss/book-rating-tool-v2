@@ -24,7 +24,7 @@
             <!-- API 設定區域 -->
             <section class="settings-section">
                 <div class="settings-toggle">
-                    <button id="settingsToggle" onclick="toggleSettings()">⚙️ API 設定</button>
+                    <button id="settingsToggle" onclick="toggleSettings()">⚙️ 請先設定 API</button>
                 </div>
                 
                 <div class="settings-panel" id="settingsPanel" style="display: none;">
@@ -34,13 +34,18 @@
                         <h4>📝 需要的 API 金鑰：</h4>
                         <ol>
                             <li><strong>Tavily API</strong>：用於搜尋豆瓣真實數據</li>
-                            <li><strong>Gemini API</strong>：用於智能分析整理</li>
+                            <li><strong>AI 分析 API</strong>：選擇以下其中一個</li>
+                            <ul>
+                                <li>Gemini 1.5 Flash：Google AI 智能分析（有限免費）</li>
+                                <li>OpenAI GPT-4o-mini：快速分析（付費）</li>
+                            </ul>
                         </ol>
                         
                         <h4>🔗 取得方式：</h4>
                         <ul>
                             <li><a href="https://app.tavily.com/" target="_blank">Tavily API 申請</a></li>
                             <li><a href="https://aistudio.google.com/" target="_blank">Gemini API 申請</a></li>
+                            <li><a href="https://platform.openai.com/api-keys" target="_blank">OpenAI API 申請</a></li>
                         </ul>
                     </div>
 
@@ -57,16 +62,34 @@
                         <label for="tavilyApiKey">Tavily API 金鑰</label>
                         <input type="password" id="tavilyApiKey" placeholder="輸入 Tavily API Key">
                     </div>
-                    
+
                     <div class="input-group">
+                        <label>AI 分析服務選擇</label>
+                        <div class="ai-provider-options">
+                            <div class="radio-option">
+                                <input type="radio" id="gemini-radio" name="aiProvider" value="gemini" checked onchange="toggleAIProvider()">
+                                <label for="gemini-radio">✅ Gemini 1.5 Flash (有限免費)</label>
+                            </div>
+                            <div class="radio-option">
+                                <input type="radio" id="openai-radio" name="aiProvider" value="openai" onchange="toggleAIProvider()">
+                                <label for="openai-radio">✅ OpenAI GPT-4o-mini (付費)</label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="input-group" id="geminiKeyGroup">
                         <label for="geminiApiKey">Gemini API 金鑰</label>
                         <input type="password" id="geminiApiKey" placeholder="輸入 Gemini API Key">
+                    </div>
+
+                    <div class="input-group" id="openaiKeyGroup" style="display: none;">
+                        <label for="openaiApiKey">OpenAI API 金鑰</label>
+                        <input type="password" id="openaiApiKey" placeholder="輸入 OpenAI API Key">
                     </div>
                     
                     <div class="input-group">
                         <button onclick="saveSettings()">💾 儲存設定</button>
                         <button onclick="clearSettings()" class="clear-btn">🗑️ 清除設定</button>
-                        <span id="settingsStatus"></span>
                     </div>
                 </div>
             </section>
@@ -85,7 +108,7 @@
                     </small>
                 </div>
                 <div class="input-group">
-                    <button id="searchBtn" onclick="searchBook()">🔍 搜尋真實評分</button>
+                    <button id="searchBtn">🔍 搜尋真實評分</button>
                 </div>
             </section>
 
@@ -139,6 +162,7 @@
     <script src="config.js"></script>
     <script src="utils/tavily-api.js"></script>
     <script src="utils/gemini-api.js"></script>
+    <script src="utils/openai-api.js"></script>
     <script src="utils/data-parser.js"></script>
     <script src="script.js"></script>
 </body>

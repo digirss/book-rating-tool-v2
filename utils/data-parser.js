@@ -7,17 +7,40 @@ class DataParser {
      * @returns {Object} 解析出的評分資訊
      */
     static parseDoubanRating(text) {
-        // 豆瓣評分格式：8.5分、8.5 分、評分 8.5 等
-        const ratingPattern = /(\d+\.?\d*)\s*分/g;
-        const matches = text.match(ratingPattern);
+        // 更全面的豆瓣評分格式匹配
+        const ratingPatterns = [
+            /(\d+\.?\d*)\s*分/g,          // 8.5分、8.5 分
+            /評分\s*[:：]?\s*(\d+\.?\d*)/g, // 評分: 8.5、評分：8.5
+            /评分\s*[:：]?\s*(\d+\.?\d*)/g, // 评分: 8.5、评分：8.5
+            /(\d+\.?\d*)\s*\/\s*10/g,     // 8.5/10
+            /(\d+\.?\d*)\s*\/\s*5/g,      // 4.3/5 (需要轉換)
+            /豆瓣評分\s*[:：]?\s*(\d+\.?\d*)/g, // 豆瓣評分: 8.5
+            /豆瓣评分\s*[:：]?\s*(\d+\.?\d*)/g, // 豆瓣评分: 8.5
+            /(\d+\.?\d*)\s*星/g           // 4.5星 (需要轉換)
+        ];
         
-        if (matches && matches.length > 0) {
-            const rating = parseFloat(matches[0].replace('分', '').trim());
-            return {
-                found: true,
-                rating: rating,
-                isValid: rating >= 0 && rating <= 10
-            };
+        for (const pattern of ratingPatterns) {
+            const matches = text.match(pattern);
+            if (matches && matches.length > 0) {
+                // 提取數字部分
+                const numberMatch = matches[0].match(/(\d+\.?\d*)/);
+                if (numberMatch) {
+                    let rating = parseFloat(numberMatch[1]);
+                    
+                    // 如果是 5 星制，轉換為 10 分制
+                    if (matches[0].includes('/5') || matches[0].includes('星')) {
+                        rating = rating * 2;
+                    }
+                    
+                    if (rating >= 0 && rating <= 10) {
+                        return {
+                            found: true,
+                            rating: rating,
+                            isValid: true
+                        };
+                    }
+                }
+            }
         }
         
         return { found: false, rating: null, isValid: false };
@@ -29,17 +52,35 @@ class DataParser {
      * @returns {Object} 解析出的評價人數
      */
     static parseRatingCount(text) {
-        // 評價人數格式：1234人評價、(1234人評價)、1234 人等
-        const countPattern = /(\d+)\s*人/g;
-        const matches = text.match(countPattern);
+        // 更廣泛的評價人數格式匹配
+        const countPatterns = [
+            /(\d+)\s*人評價/g,           // 1234人評價
+            /(\d+)\s*人评价/g,           // 1234人评价 (簡體)
+            /\((\d+)人評價\)/g,         // (1234人評價)
+            /\((\d+)人评价\)/g,         // (1234人评价)
+            /(\d+)\s*人/g,              // 1234 人
+            /(\d+)\s*個評分/g,          // 1234個評分
+            /(\d+)\s*个评分/g,          // 1234个评分
+            /(\d+)\s*評價/g,            // 1234評價
+            /(\d+)\s*评价/g             // 1234评价
+        ];
         
-        if (matches && matches.length > 0) {
-            const count = parseInt(matches[0].replace('人', '').trim());
-            return {
-                found: true,
-                count: count,
-                isValid: count > 0
-            };
+        for (const pattern of countPatterns) {
+            const matches = text.match(pattern);
+            if (matches && matches.length > 0) {
+                // 提取數字部分
+                const numberMatch = matches[0].match(/(\d+)/);
+                if (numberMatch) {
+                    const count = parseInt(numberMatch[1]);
+                    if (count > 0) {
+                        return {
+                            found: true,
+                            count: count,
+                            isValid: true
+                        };
+                    }
+                }
+            }
         }
         
         return { found: false, count: null, isValid: false };

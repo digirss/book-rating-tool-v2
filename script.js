@@ -3,6 +3,7 @@ class BookRatingV2 {
     constructor() {
         this.tavilyAPI = null;
         this.geminiAnalyzer = null;
+        this.openaiAnalyzer = null;
         this.isInitialized = false;
         
         this.init();
@@ -49,6 +50,8 @@ class BookRatingV2 {
     loadSettings() {
         const tavilyKey = localStorage.getItem(CONFIG.storage.tavilyApiKey);
         const geminiKey = localStorage.getItem(CONFIG.storage.geminiApiKey);
+        const openaiKey = localStorage.getItem(CONFIG.storage.openaiApiKey);
+        const savedProvider = localStorage.getItem('bookRatingV2_aiProvider') || 'gemini';
 
         if (tavilyKey) {
             document.getElementById('tavilyApiKey').value = tavilyKey;
@@ -60,7 +63,31 @@ class BookRatingV2 {
             apiKeys.gemini = geminiKey;
         }
 
-        this.updateAPIInstances();
+        if (openaiKey) {
+            document.getElementById('openaiApiKey').value = openaiKey;
+            apiKeys.openai = openaiKey;
+        }
+
+        // 設定 AI 提供者選擇
+        const geminiRadio = document.getElementById('gemini-radio');
+        const openaiRadio = document.getElementById('openai-radio');
+        
+        if (geminiRadio && openaiRadio) {
+            if (savedProvider === 'gemini') {
+                geminiRadio.checked = true;
+                openaiRadio.checked = false;
+            } else {
+                geminiRadio.checked = false;
+                openaiRadio.checked = true;
+            }
+        }
+        searchState.selectedAI = savedProvider;
+        
+        // 顯示對應的 API 金鑰輸入框
+        setTimeout(() => {
+            this.toggleAIProvider();
+            this.updateAPIInstances();
+        }, 100);
     }
 
     updateAPIInstances() {
@@ -71,22 +98,44 @@ class BookRatingV2 {
             if (apiKeys.gemini) {
                 this.geminiAnalyzer = createGeminiAnalyzer(apiKeys.gemini);
             }
+            if (apiKeys.openai) {
+                this.openaiAnalyzer = createOpenAIAnalyzer(apiKeys.openai);
+            }
         } catch (error) {
             console.warn('⚠️ API 實例創建警告:', error.message);
         }
     }
 
+    toggleAIProvider() {
+        const provider = document.getElementById('aiProvider').value;
+        const geminiGroup = document.getElementById('geminiKeyGroup');
+        const openaiGroup = document.getElementById('openaiKeyGroup');
+        
+        if (provider === 'gemini') {
+            geminiGroup.style.display = 'block';
+            openaiGroup.style.display = 'none';
+        } else {
+            geminiGroup.style.display = 'none';
+            openaiGroup.style.display = 'block';
+        }
+        
+        searchState.selectedAI = provider;
+    }
+
     updateUIState() {
-        const hasValidKeys = apiKeys.tavily && apiKeys.gemini;
+        const selectedAI = searchState.selectedAI;
+        const hasValidKeys = apiKeys.tavily && (
+            (selectedAI === 'gemini' && apiKeys.gemini) ||
+            (selectedAI === 'openai' && apiKeys.openai)
+        );
         const searchBtn = document.getElementById('searchBtn');
         
         if (searchBtn) {
+            searchBtn.style.display = 'block';
             searchBtn.disabled = !hasValidKeys;
-            if (!hasValidKeys) {
-                searchBtn.innerHTML = '⚙️ 請先設定 API';
-            } else {
-                searchBtn.innerHTML = '🔍 搜尋真實評分';
-            }
+            const aiName = selectedAI === 'gemini' ? 'Gemini 1.5 Flash' : 'GPT-4o-mini';
+            searchBtn.innerHTML = `🔍 搜尋真實評分 (${aiName})`;
+            searchBtn.onclick = () => this.searchBook();
         }
     }
 
@@ -99,8 +148,12 @@ class BookRatingV2 {
             return;
         }
 
-        if (!this.tavilyAPI || !this.geminiAnalyzer) {
-            this.showError('設定錯誤', '請先正確設定 Tavily 和 Gemini API 金鑰');
+        const selectedAI = searchState.selectedAI;
+        const aiAnalyzer = selectedAI === 'gemini' ? this.geminiAnalyzer : this.openaiAnalyzer;
+        
+        if (!this.tavilyAPI || !aiAnalyzer) {
+            const aiName = selectedAI === 'gemini' ? 'Gemini' : 'OpenAI';
+            this.showError('設定錯誤', `請先正確設定 Tavily 和 ${aiName} API 金鑰`);
             return;
         }
 
@@ -121,10 +174,11 @@ class BookRatingV2 {
                 throw new Error('在豆瓣找不到相關書籍資料');
             }
 
-            // 步驟 2: Gemini 分析
-            this.updateLoadingStep(2, '正在進行 AI 智能分析...');
+            // 步驟 2: AI 分析
+            const aiName = selectedAI === 'gemini' ? 'Gemini' : 'GPT-4o-mini';
+            this.updateLoadingStep(2, `正在進行 ${aiName} 智能分析...`);
             
-            const analysisResult = await this.geminiAnalyzer.analyzeBookData(tavilyResults, bookTitle, bookAuthor);
+            const analysisResult = await aiAnalyzer.analyzeBookData(tavilyResults, bookTitle, bookAuthor);
             
             // 步驟 3: 整理顯示
             this.updateLoadingStep(3, '正在整理結果...');
@@ -199,7 +253,6 @@ class BookRatingV2 {
                         <div class="rating-display">
                             <span class="rating-number">${book.doubanRating || '未找到'}</span>
                             <span class="rating-scale">/10</span>
-                            ${book.ratingCount ? `<span class="rating-count">(${book.ratingCount}人評價)</span>` : ''}
                         </div>
                     </div>
                     
@@ -239,10 +292,6 @@ class BookRatingV2 {
                         <p class="pareto-content">${book.paretoAnalysis || '未提供2080分析'}</p>
                     </div>
 
-                    <div class="analysis-item">
-                        <h3>📝 豆瓣用戶評價</h3>
-                        <p>${book.doubanReviews || '未找到用戶評價'}</p>
-                    </div>
                 </div>
 
                 <div class="data-source-info">
@@ -320,7 +369,7 @@ class BookRatingV2 {
         const markdownContent = `# ${book.title || '未知書名'}
 
 **作者：** ${book.author || '未知作者'}  
-**豆瓣評分：** ${book.doubanRating || '未找到'}/10 ${book.ratingCount ? `(${book.ratingCount}人評價)` : ''}  
+**豆瓣評分：** ${book.doubanRating || '未找到'}/10  
 **推薦程度：** ${DataParser.generateRecommendation(book.doubanRating || 0)}  
 **查詢時間：** ${timestamp}  
 **資料來源：** V2 版本 - 豆瓣真實數據
@@ -341,9 +390,6 @@ ${book.simpleExplanation || '未提供簡單解釋'}
 
 ## 🎯 2080法則：關鍵20%
 ${book.paretoAnalysis || '未提供2080分析'}
-
-## 📝 豆瓣用戶評價
-${book.doubanReviews || '未找到用戶評價'}
 
 ---
 
@@ -380,61 +426,104 @@ function toggleSettings() {
     panel.style.display = isVisible ? 'none' : 'block';
 }
 
+function toggleAIProvider() {
+    const geminiRadio = document.getElementById('gemini-radio');
+    const openaiRadio = document.getElementById('openai-radio');
+    const geminiGroup = document.getElementById('geminiKeyGroup');
+    const openaiGroup = document.getElementById('openaiKeyGroup');
+    
+    if (!geminiRadio || !openaiRadio || !geminiGroup || !openaiGroup) {
+        console.error('❌ 找不到必要的 DOM 元素');
+        return;
+    }
+    
+    const provider = geminiRadio.checked ? 'gemini' : 'openai';
+    
+    if (provider === 'gemini') {
+        geminiGroup.style.display = 'block';
+        openaiGroup.style.display = 'none';
+    } else {
+        geminiGroup.style.display = 'none';
+        openaiGroup.style.display = 'block';
+    }
+    
+    searchState.selectedAI = provider;
+    
+    if (app) {
+        app.updateUIState();
+    }
+}
+
 async function saveSettings() {
     const tavilyKey = document.getElementById('tavilyApiKey').value.trim();
     const geminiKey = document.getElementById('geminiApiKey').value.trim();
-    const statusEl = document.getElementById('settingsStatus');
-
-    if (!tavilyKey || !geminiKey) {
-        statusEl.innerHTML = '❌ 請填入所有 API 金鑰';
-        statusEl.className = 'status-error';
+    const openaiKey = document.getElementById('openaiApiKey').value.trim();
+    const geminiRadio = document.getElementById('gemini-radio');
+    const selectedProvider = geminiRadio.checked ? 'gemini' : 'openai';
+    // 檢查必要的 API 金鑰
+    const aiKey = selectedProvider === 'gemini' ? geminiKey : openaiKey;
+    if (!tavilyKey || !aiKey) {
+        const aiName = selectedProvider === 'gemini' ? 'Gemini' : 'OpenAI';
+        alert(`❌ 請填入 Tavily 和 ${aiName} API 金鑰`);
         return;
     }
 
-    statusEl.innerHTML = '⏳ 驗證中...';
-    statusEl.className = 'status-loading';
+    console.log('⏳ 驗證 API 金鑰中...');
 
     try {
         // 驗證 API 金鑰
         const tavilyAPI = createTavilyAPI(tavilyKey);
-        const geminiAnalyzer = createGeminiAnalyzer(geminiKey);
+        const aiAnalyzer = selectedProvider === 'gemini' 
+            ? createGeminiAnalyzer(geminiKey)
+            : createOpenAIAnalyzer(openaiKey);
 
-        const [tavilyValid, geminiValid] = await Promise.all([
+        const [tavilyValid, aiValid] = await Promise.all([
             tavilyAPI.validateApiKey(),
-            geminiAnalyzer.validateApiKey()
+            aiAnalyzer.validateApiKey()
         ]);
 
         if (!tavilyValid) {
             throw new Error('Tavily API 金鑰無效');
         }
 
-        if (!geminiValid) {
-            throw new Error('Gemini API 金鑰無效');
+        if (!aiValid) {
+            const aiName = selectedProvider === 'gemini' ? 'Gemini' : 'OpenAI';
+            throw new Error(`${aiName} API 金鑰無效`);
         }
 
         // 儲存到本地
         localStorage.setItem(CONFIG.storage.tavilyApiKey, tavilyKey);
-        localStorage.setItem(CONFIG.storage.geminiApiKey, geminiKey);
+        localStorage.setItem('bookRatingV2_aiProvider', selectedProvider);
+        
+        if (selectedProvider === 'gemini') {
+            localStorage.setItem(CONFIG.storage.geminiApiKey, geminiKey);
+        } else {
+            localStorage.setItem(CONFIG.storage.openaiApiKey, openaiKey);
+        }
 
         // 更新全域變數
         apiKeys.tavily = tavilyKey;
-        apiKeys.gemini = geminiKey;
+        if (selectedProvider === 'gemini') {
+            apiKeys.gemini = geminiKey;
+        } else {
+            apiKeys.openai = openaiKey;
+        }
+        searchState.selectedAI = selectedProvider;
 
         // 更新應用程式實例
         app.updateAPIInstances();
         app.updateUIState();
 
-        statusEl.innerHTML = '✅ 設定已儲存並驗證';
-        statusEl.className = 'status-success';
+        console.log('✅ 設定已儲存並驗證');
+        alert('✅ 設定已儲存並驗證');
 
         setTimeout(() => {
             toggleSettings();
-        }, 1500);
+        }, 1000);
 
     } catch (error) {
         console.error('❌ API 驗證失敗:', error);
-        statusEl.innerHTML = `❌ ${error.message}`;
-        statusEl.className = 'status-error';
+        alert(`❌ ${error.message}`);
     }
 }
 
@@ -442,18 +531,26 @@ function clearSettings() {
     if (confirm('確定要清除所有 API 設定嗎？')) {
         localStorage.removeItem(CONFIG.storage.tavilyApiKey);
         localStorage.removeItem(CONFIG.storage.geminiApiKey);
+        localStorage.removeItem(CONFIG.storage.openaiApiKey);
+        localStorage.removeItem('bookRatingV2_aiProvider');
         
         document.getElementById('tavilyApiKey').value = '';
         document.getElementById('geminiApiKey').value = '';
+        document.getElementById('openaiApiKey').value = '';
+        document.getElementById('gemini-radio').checked = true;
+        document.getElementById('openai-radio').checked = false;
         
         apiKeys.tavily = '';
         apiKeys.gemini = '';
+        apiKeys.openai = '';
+        searchState.selectedAI = 'gemini';
         
+        app.toggleAIProvider();
         app.updateAPIInstances();
         app.updateUIState();
         
-        document.getElementById('settingsStatus').innerHTML = '🗑️ 設定已清除';
-        document.getElementById('settingsStatus').className = 'status-info';
+        console.log('🗑️ 設定已清除');
+        alert('🗑️ 設定已清除');
     }
 }
 
@@ -463,6 +560,11 @@ let app;
 // 當頁面載入完成時初始化
 document.addEventListener('DOMContentLoaded', () => {
     app = new BookRatingV2();
+    
+    // 確保初始狀態正確
+    setTimeout(() => {
+        toggleAIProvider();
+    }, 200);
 });
 
 // 防止未處理的 Promise 拒絕

@@ -85,8 +85,8 @@ class TavilyAPI {
             query += ` "${author}"`;
         }
         
-        // 添加相關關鍵字以提高搜尋精確度
-        query += ' 評分 書籍';
+        // 添加相關關鍵字以提高搜尋精確度，包含簡體中文
+        query += ' 评分 评价 人评价';
         
         return query;
     }
@@ -131,13 +131,18 @@ class TavilyAPI {
         for (const result of searchResults.results) {
             const content = result.content.toLowerCase();
             
-            // 檢查常見的評分格式
+            // 檢查常見的評分格式（包含簡繁體）
             const ratingPatterns = [
                 /\d+\.\d+\s*分/,           // X.X分
                 /評分\s*[:：]?\s*\d+/,      // 評分: X
+                /评分\s*[:：]?\s*\d+/,      // 评分: X (簡體)
                 /\d+\.\d+\s*\/\s*10/,      // X.X/10
                 /\d+人評價/,              // X人評價
-                /\d+\s*people\s*rated/    // X people rated
+                /\d+人评价/,              // X人评价 (簡體)
+                /\d+\s*people\s*rated/,   // X people rated
+                /豆瓣評分/,               // 豆瓣評分
+                /豆瓣评分/,               // 豆瓣评分 (簡體)
+                /\d+\.\d+\s*星/           // X.X星
             ];
             
             if (ratingPatterns.some(pattern => pattern.test(content))) {

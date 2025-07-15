@@ -10,6 +10,12 @@ const CONFIG = {
             endpoint: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent',
             maxTokens: 2048,
             temperature: 0.3
+        },
+        openai: {
+            endpoint: 'https://api.openai.com/v1/chat/completions',
+            model: 'gpt-4o-mini', // 注意：OpenAI 目前沒有 gpt-4.1-nano 模型
+            maxTokens: 2048,
+            temperature: 0.3
         }
     },
     
@@ -23,7 +29,8 @@ const CONFIG = {
     // 本地儲存金鑰
     storage: {
         tavilyApiKey: 'bookRatingV2_tavilyKey',
-        geminiApiKey: 'bookRatingV2_geminiKey'
+        geminiApiKey: 'bookRatingV2_geminiKey',
+        openaiApiKey: 'bookRatingV2_openaiKey'
     },
     
     // 版本資訊
@@ -37,11 +44,13 @@ const CONFIG = {
 // 全域變數
 let apiKeys = {
     tavily: '',
-    gemini: ''
+    gemini: '',
+    openai: ''
 };
 
 let searchState = {
     isSearching: false,
     currentStep: 0,
-    bookData: null
+    bookData: null,
+    selectedAI: 'gemini' // 預設使用 Gemini
 };

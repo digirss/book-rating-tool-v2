@@ -1,8 +1,31 @@
-// Gemini AI 分析模組
-class GeminiAnalyzer {
+// OpenAI API 分析模組
+class OpenAIAnalyzer {
     constructor(apiKey) {
         this.apiKey = apiKey;
-        this.endpoint = `${CONFIG.apis.gemini.endpoint}?key=${apiKey}`;
+        
+        // 使用預設配置以防 CONFIG 未載入
+        const defaultConfig = {
+            endpoint: 'https://api.openai.com/v1/chat/completions',
+            model: 'gpt-4o-mini', // 注意：OpenAI 目前沒有 gpt-4.1-nano，使用 gpt-4o-mini
+            maxTokens: 2048,
+            temperature: 0.3
+        };
+        
+        // 檢查 CONFIG 並使用預設值
+        if (CONFIG && CONFIG.apis && CONFIG.apis.openai) {
+            this.endpoint = CONFIG.apis.openai.endpoint;
+            this.model = CONFIG.apis.openai.model;
+            console.log('✅ 使用 CONFIG 中的 OpenAI 設定');
+        } else {
+            console.warn('⚠️ 使用預設 OpenAI 配置');
+            this.endpoint = defaultConfig.endpoint;
+            this.model = defaultConfig.model;
+        }
+        
+        console.log('✅ OpenAI API 初始化:', {
+            endpoint: this.endpoint,
+            model: this.model
+        });
     }
 
     /**
@@ -16,47 +39,44 @@ class GeminiAnalyzer {
         const prompt = this.buildAnalysisPrompt(tavilyResults, bookTitle, author);
         
         try {
-            console.log('🤖 開始 Gemini 分析...');
+            console.log('🤖 開始 OpenAI GPT-4o-mini 分析...');
             
             const response = await fetch(this.endpoint, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${this.apiKey}`
                 },
                 body: JSON.stringify({
-                    contents: [{
-                        parts: [{
-                            text: prompt
-                        }]
+                    model: this.model,
+                    messages: [{
+                        role: 'user',
+                        content: prompt
                     }],
-                    generationConfig: {
-                        temperature: CONFIG.apis.gemini.temperature,
-                        topK: 1,
-                        topP: 1,
-                        maxOutputTokens: CONFIG.apis.gemini.maxTokens,
-                    }
+                    max_tokens: (CONFIG && CONFIG.apis && CONFIG.apis.openai) ? CONFIG.apis.openai.maxTokens : 2048,
+                    temperature: (CONFIG && CONFIG.apis && CONFIG.apis.openai) ? CONFIG.apis.openai.temperature : 0.3
                 })
             });
 
             if (!response.ok) {
                 const errorText = await response.text();
-                console.error('❌ Gemini API 錯誤:', errorText);
-                throw new Error(`Gemini 分析失敗: ${response.status}`);
+                console.error('❌ OpenAI API 錯誤:', errorText);
+                throw new Error(`OpenAI 分析失敗: ${response.status}`);
             }
 
             const data = await response.json();
-            console.log('✅ Gemini 分析完成');
+            console.log('✅ OpenAI 分析完成');
             
-            return this.parseGeminiResponse(data);
+            return this.parseOpenAIResponse(data);
             
         } catch (error) {
-            console.error('❌ Gemini 分析失敗:', error);
+            console.error('❌ OpenAI 分析失敗:', error);
             throw new Error(`AI 分析失敗: ${error.message}`);
         }
     }
 
     /**
-     * 建構 Gemini 分析提示詞
+     * 建構 OpenAI 分析提示詞
      */
     buildAnalysisPrompt(tavilyResults, bookTitle, author) {
         const searchContent = tavilyResults.results
@@ -129,34 +149,34 @@ ${searchContent}
     }
 
     /**
-     * 解析 Gemini 回應
+     * 解析 OpenAI 回應
      */
-    parseGeminiResponse(data) {
-        if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
-            throw new Error('Gemini 回應格式錯誤');
+    parseOpenAIResponse(data) {
+        if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+            throw new Error('OpenAI 回應格式錯誤');
         }
 
-        const content = data.candidates[0].content;
+        const message = data.choices[0].message;
         let responseText = '';
 
-        if (content.parts && content.parts[0] && content.parts[0].text) {
-            responseText = content.parts[0].text;
+        if (message.content) {
+            responseText = message.content;
         } else {
-            throw new Error('無法解析 Gemini 回應內容');
+            throw new Error('無法解析 OpenAI 回應內容');
         }
 
         try {
             // 提取 JSON 部分
             const jsonMatch = responseText.match(/\{[\s\S]*\}/);
             if (!jsonMatch) {
-                throw new Error('Gemini 回應中未找到有效的 JSON');
+                throw new Error('OpenAI 回應中未找到有效的 JSON');
             }
 
             const result = JSON.parse(jsonMatch[0]);
             
             // 驗證回應結構
             if (!result.hasOwnProperty('success')) {
-                throw new Error('Gemini 回應結構不正確');
+                throw new Error('OpenAI 回應結構不正確');
             }
 
             return result;
@@ -177,31 +197,30 @@ ${searchContent}
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${this.apiKey}`
                 },
                 body: JSON.stringify({
-                    contents: [{
-                        parts: [{
-                            text: 'test'
-                        }]
+                    model: this.model,
+                    messages: [{
+                        role: 'user',
+                        content: 'test'
                     }],
-                    generationConfig: {
-                        maxOutputTokens: 10,
-                    }
+                    max_tokens: 10
                 })
             });
 
             return response.ok;
         } catch (error) {
-            console.error('❌ Gemini API Key 驗證失敗:', error);
+            console.error('❌ OpenAI API Key 驗證失敗:', error);
             return false;
         }
     }
 }
 
-// 工具函數：建立 Gemini 分析器實例
-function createGeminiAnalyzer(apiKey) {
+// 工具函數：建立 OpenAI 分析器實例
+function createOpenAIAnalyzer(apiKey) {
     if (!apiKey) {
-        throw new Error('請提供 Gemini API 金鑰');
+        throw new Error('請提供 OpenAI API 金鑰');
     }
-    return new GeminiAnalyzer(apiKey);
+    return new OpenAIAnalyzer(apiKey);
 }
